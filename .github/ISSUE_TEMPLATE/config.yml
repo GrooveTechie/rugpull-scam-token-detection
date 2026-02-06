@@ -1,0 +1,11 @@
+blank_issues_enabled: true
+contact_links:
+  - name: 💬 General Discussion
+    url: https://github.com/GrooveTechie/rugpull-scam-token-detection/discussions
+    about: Ask questions and discuss ideas with the community
+  - name: 🐛 Bug Report
+    url: https://github.com/GrooveTechie/rugpull-scam-token-detection/issues/new
+    about: Create a report to help us improve
+  - name: 📖 Documentation
+    url: https://github.com/GrooveTechie/rugpull-scam-token-detection/blob/main/README.md
+    about: View the project documentation
