@@ -13,6 +13,9 @@ const PROXY_SELL_SCORE_PER_EVENT = 5;
 const MAX_PROXY_SELL_SCORE = 10;
 
 // Type for parsed instruction info that may contain transfer data
+// - `mint` and `amount`: present in regular 'transfer' instructions
+// - `authority` and `tokenAmount`: present in 'transferChecked' instructions
+// - `source`: the source account for the transfer
 type TransferInfo = {
   mint?: string;
   source?: string;
@@ -83,8 +86,8 @@ function analyzeTxForSells(
       if ('parsed' in ix && ix.parsed?.type === 'transfer') {
         const info = ix.parsed.info;
         
-        // Check if this is a token transfer (not SOL)
-        if (info.mint === mintAddress || info.authority) {
+        // Only process if this is a token transfer for the target mint
+        if (info.mint === mintAddress) {
           const source = info.source || info.authority;
           
           if (source) {
@@ -93,8 +96,8 @@ function analyzeTxForSells(
             
             // For proxy detection, we would need to check if source
             // has recent transactions with wallets in graph
-            // For simplicity, we'll mark as proxy if not direct
-            // but has large transaction volume (placeholder logic)
+            // Current implementation uses a simplified heuristic based on transfer size
+            // Note: This may generate false positives for large transfers
             
             if (isDirect || shouldCheckAsProxy(info)) {
               // Skip if timestamp is unavailable
