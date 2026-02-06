@@ -18,4 +18,24 @@ export type SolanaClients = {
   connection: import('@solana/web3.js').Connection;
 };
 
+export type WalletNodeType = 'creator' | 'liquidityFunder' | 'mintAuthority' | 'freezeAuthority' | 'updateAuthority';
 
+export type WalletNode = {
+  address: string;
+  type: WalletNodeType[];
+  firstSeen?: number; // slot
+};
+
+export type WalletGraph = {
+  nodes: Map<string, WalletNode>;
+  mint: string;
+};
+
+export type SellEvent = {
+  wallet: string;
+  mint: string;
+  amount: string;
+  timestamp: number;
+  slot: number;
+  isDirect: boolean; // true if wallet is in graph, false if proxy (one hop away)
+};
