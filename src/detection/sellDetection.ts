@@ -97,11 +97,17 @@ function analyzeTxForSells(
             // but has large transaction volume (placeholder logic)
             
             if (isDirect || shouldCheckAsProxy(info)) {
+              // Skip if timestamp is unavailable
+              if (!tx.blockTime) {
+                logger.debug({ slot }, 'Skipping sell event: blockTime unavailable');
+                continue;
+              }
+              
               sells.push({
                 wallet: source,
                 mint: mintAddress,
                 amount: info.amount || info.tokenAmount?.amount || '0',
-                timestamp: tx.blockTime || Date.now() / 1000,
+                timestamp: tx.blockTime,
                 slot,
                 isDirect
               });
@@ -121,11 +127,17 @@ function analyzeTxForSells(
             const isDirect = isWalletInGraph(graph, source);
             
             if (isDirect) {
+              // Skip if timestamp is unavailable
+              if (!tx.blockTime) {
+                logger.debug({ slot }, 'Skipping sell event: blockTime unavailable');
+                continue;
+              }
+              
               sells.push({
                 wallet: source,
                 mint: mintAddress,
                 amount: info.tokenAmount?.amount || '0',
-                timestamp: tx.blockTime || Date.now() / 1000,
+                timestamp: tx.blockTime,
                 slot,
                 isDirect: true
               });
@@ -180,5 +192,4 @@ export function calculateSellRisk(sells: SellEvent[]): {
 
   return { score, reasons };
 }
-
 

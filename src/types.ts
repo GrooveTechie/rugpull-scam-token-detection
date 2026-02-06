@@ -39,5 +39,3 @@ export type SellEvent = {
   slot: number;
   isDirect: boolean; // true if wallet is in graph, false if proxy (one hop away)
 };
-
-

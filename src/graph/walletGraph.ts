@@ -156,4 +156,3 @@ export function getWalletNode(graph: WalletGraph, address: string): WalletNode |
   return graph.nodes.get(address);
 }
 
-
