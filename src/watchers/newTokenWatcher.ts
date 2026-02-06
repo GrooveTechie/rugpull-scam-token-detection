@@ -13,7 +13,14 @@ export async function runNewTokenWatcher({ clients, programIds, onTokenDetected 
   const { connection } = clients;
 
   const filters = programIds
-    .map((id) => ({ mentions: [new PublicKey(id).toBase58()] }))
+    .map((id) => {
+      try {
+        return { mentions: [new PublicKey(id).toBase58()] };
+      } catch (err) {
+        logger.warn({ id, err }, 'Invalid PROGRAM_ID, skipping');
+        return null;
+      }
+    })
     .filter(Boolean);
 
   if (filters.length === 0) {
@@ -22,7 +29,7 @@ export async function runNewTokenWatcher({ clients, programIds, onTokenDetected 
 
   const sub = await connection.onLogs('all', async (logs, ctx) => {
     try {
-      const programId = logs.programId?.toBase58();
+      const programId = (logs as any).programId?.toBase58?.();
       const mint = extractPossibleMintFromLogs(logs.logs);
       if (!mint) return;
 
