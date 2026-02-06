@@ -3,6 +3,7 @@ import { runTokenAuthorityChecks } from '../checks/tokenChecks.js';
 import { runLiquidityChecks } from '../checks/liquidityChecks.js';
 import { buildWalletGraph } from '../graph/walletGraph.js';
 import { detectDevSells, calculateSellRisk } from '../detection/sellDetection.js';
+import { logger } from '../lib/logger.js';
 
 export async function scoreTokenRisk(clients: SolanaClients, evt: TokenEvent): Promise<RiskScore> {
   const breakdown: Record<string, number> = {};
@@ -43,6 +44,7 @@ export async function scoreTokenRisk(clients: SolanaClients, evt: TokenEvent): P
     }
   } catch (err) {
     // Wallet graph analysis is optional, don't fail the entire scoring if it errors
+    logger.debug({ err, mint: evt.mint }, 'Wallet graph analysis failed');
   }
 
   return { total: Math.min(100, total), reasons, breakdown };

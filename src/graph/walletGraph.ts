@@ -3,6 +3,9 @@ import { getMint } from '@solana/spl-token';
 import { WalletGraph, WalletNode } from '../types.js';
 import { logger } from '../lib/logger.js';
 
+// Minimum SOL transfer amount (in lamports) to consider a wallet as liquidity funder
+const LIQUIDITY_FUNDER_MIN_SOL_LAMPORTS = 1_000_000_000; // 1 SOL
+
 /**
  * Build a wallet graph starting from token mint, identifying:
  * - Creator (deployer)
@@ -29,7 +32,7 @@ export async function buildWalletGraph(
       addOrUpdateNode(
         graph,
         mintInfo.mintAuthority.toBase58(),
-        'mint_authority'
+        'mintAuthority'
       );
     }
     
@@ -38,7 +41,7 @@ export async function buildWalletGraph(
       addOrUpdateNode(
         graph,
         mintInfo.freezeAuthority.toBase58(),
-        'freeze_authority'
+        'freezeAuthority'
       );
     }
 
@@ -100,10 +103,10 @@ async function identifyLiquidityFunder(
       for (const ix of instructions) {
         if ('parsed' in ix && ix.parsed?.type === 'transfer') {
           const info = ix.parsed.info;
-          if (info.lamports && info.lamports > 1_000_000_000) { // > 1 SOL
+          if (info.lamports && info.lamports > LIQUIDITY_FUNDER_MIN_SOL_LAMPORTS) {
             const funder = info.source;
             if (funder) {
-              addOrUpdateNode(graph, funder, 'liquidity_funder', sig.slot);
+              addOrUpdateNode(graph, funder, 'liquidityFunder', sig.slot);
               return; // Found likely funder
             }
           }

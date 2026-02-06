@@ -18,7 +18,7 @@ export type SolanaClients = {
   connection: import('@solana/web3.js').Connection;
 };
 
-export type WalletNodeType = 'creator' | 'liquidity_funder' | 'mint_authority' | 'freeze_authority' | 'update_authority';
+export type WalletNodeType = 'creator' | 'liquidityFunder' | 'mintAuthority' | 'freezeAuthority' | 'updateAuthority';
 
 export type WalletNode = {
   address: string;

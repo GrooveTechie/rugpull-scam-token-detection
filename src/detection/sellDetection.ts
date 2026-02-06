@@ -3,6 +3,20 @@ import { WalletGraph, SellEvent } from '../types.js';
 import { isWalletInGraph } from '../graph/walletGraph.js';
 import { logger } from '../lib/logger.js';
 
+// Minimum token amount to consider as a potential proxy sell
+const PROXY_SELL_MIN_AMOUNT = 1000000;
+
+// Type for parsed instruction info that may contain transfer data
+type TransferInfo = {
+  mint?: string;
+  source?: string;
+  authority?: string;
+  amount?: string;
+  tokenAmount?: {
+    amount?: string;
+  };
+};
+
 /**
  * Detect sell events from dev-linked wallets
  * Checks both direct sells (from wallets in graph) and proxy sells (one hop away)
@@ -122,14 +136,13 @@ function analyzeTxForSells(
 }
 
 /**
- * Placeholder logic to determine if a wallet should be checked as a proxy
- * In a real implementation, this would check if the wallet has recent
- * transactions with wallets in the graph
+ * Determine if a wallet should be checked as a proxy based on transfer info
+ * Checks for large token transfers that might indicate proxy sells
  */
-function shouldCheckAsProxy(info: any): boolean {
+function shouldCheckAsProxy(info: TransferInfo): boolean {
   // Simple heuristic: large transfers might be proxy sells
   const amount = parseInt(info.amount || info.tokenAmount?.amount || '0');
-  return amount > 1000000; // Arbitrary threshold
+  return amount > PROXY_SELL_MIN_AMOUNT;
 }
 
 /**
