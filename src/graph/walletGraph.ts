@@ -6,6 +6,61 @@ import { logger } from '../lib/logger.js';
 // Minimum SOL transfer amount (in lamports) to consider a wallet as liquidity funder
 const LIQUIDITY_FUNDER_MIN_SOL_LAMPORTS = 1_000_000_000; // 1 SOL
 
+// Maximum pagination batches when searching for oldest signature (prevents runaway RPC calls)
+const MAX_SIGNATURE_PAGINATION_BATCHES = 10;
+const SIGNATURES_PER_BATCH = 1000;
+
+/**
+ * Fetch the oldest signature for an address by paginating through all signatures.
+ * Solana's getSignaturesForAddress returns newest-to-oldest, so we must paginate
+ * until we reach the end to find the creation transaction.
+ */
+async function getOldestSignature(
+  connection: Connection,
+  address: PublicKey
+): Promise<{ signature: string; slot: number } | null> {
+  let lastSignature: string | undefined;
+  let oldestSig: { signature: string; slot: number } | null = null;
+  let batchCount = 0;
+
+  while (batchCount < MAX_SIGNATURE_PAGINATION_BATCHES) {
+    const options: { limit: number; before?: string } = { limit: SIGNATURES_PER_BATCH };
+    if (lastSignature) {
+      options.before = lastSignature;
+    }
+
+    const signatures = await connection.getSignaturesForAddress(
+      address,
+      options,
+      'confirmed'
+    );
+
+    if (signatures.length === 0) {
+      break;
+    }
+
+    // Last signature in each batch is the oldest so far
+    const oldest = signatures[signatures.length - 1];
+    oldestSig = { signature: oldest.signature, slot: oldest.slot };
+    lastSignature = oldest.signature;
+    batchCount++;
+
+    // If we got fewer than the limit, we've reached the end
+    if (signatures.length < SIGNATURES_PER_BATCH) {
+      break;
+    }
+  }
+
+  if (batchCount >= MAX_SIGNATURE_PAGINATION_BATCHES) {
+    logger.warn(
+      { address: address.toBase58(), batchCount },
+      'Reached max pagination limit when searching for oldest signature; creator may be inaccurate'
+    );
+  }
+
+  return oldestSig;
+}
+
 /**
  * Build a wallet graph starting from token mint, identifying:
  * - Creator (deployer)
@@ -45,23 +100,23 @@ export async function buildWalletGraph(
       );
     }
 
-    // Fetch mint transaction to identify creator
-    const signatures = await connection.getSignaturesForAddress(
-      mint,
-      { limit: 1 },
-      'confirmed'
-    );
+    // Fetch the oldest (creation) transaction to identify the true creator
+    const oldestSig = await getOldestSignature(connection, mint);
 
-    if (signatures.length > 0) {
+    if (oldestSig) {
       const tx = await connection.getParsedTransaction(
-        signatures[0].signature,
+        oldestSig.signature,
         { maxSupportedTransactionVersion: 0 }
       );
       
       if (tx?.transaction.message.accountKeys?.[0]?.pubkey) {
         const creator = tx.transaction.message.accountKeys[0].pubkey.toBase58();
-        addOrUpdateNode(graph, creator, 'creator', signatures[0].slot);
+        addOrUpdateNode(graph, creator, 'creator', oldestSig.slot);
       }
+    } else if (mintInfo.mintAuthority) {
+      // Fallback: use mint authority as proxy for creator if we couldn't find creation tx
+      logger.debug({ mint: mintAddress }, 'Using mint authority as creator fallback');
+      addOrUpdateNode(graph, mintInfo.mintAuthority.toBase58(), 'creator');
     }
 
     // Attempt to identify liquidity funder by looking at recent token transfers
@@ -83,14 +138,25 @@ async function identifyLiquidityFunder(
   graph: WalletGraph
 ): Promise<void> {
   try {
-    // Get recent signatures (up to 10) to find liquidity addition events
-    const signatures = await connection.getSignaturesForAddress(
+    // Fetch early signatures to find liquidity addition events
+    // We need to look at the earliest transactions near token creation
+    const oldestSig = await getOldestSignature(connection, mint);
+    if (!oldestSig) return;
+
+    // Get signatures starting from the oldest, working forward in time
+    // The 'before' parameter fetches signatures older than the given one,
+    // so we fetch all signatures, then take the ones near the oldest
+    const allSignatures = await connection.getSignaturesForAddress(
       mint,
-      { limit: 10 },
+      { limit: 1000 },
       'confirmed'
     );
 
-    for (const sig of signatures.slice(0, 5)) {
+    // Take the last 5 signatures from the array (oldest 5 transactions)
+    // Since signatures are returned newest-to-oldest, we want the end of the array
+    const earlySignatures = allSignatures.slice(-5).reverse();
+
+    for (const sig of earlySignatures) {
       const tx = await connection.getParsedTransaction(
         sig.signature,
         { maxSupportedTransactionVersion: 0 }

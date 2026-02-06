@@ -130,12 +130,9 @@ function analyzeTxForSells(
             // Check if source wallet is in graph (direct sell)
             const isDirect = isWalletInGraph(graph, source);
             
-            // For proxy detection, we would need to check if source
-            // has recent transactions with wallets in graph
-            // Current implementation uses a simplified heuristic based on transfer size
-            // Note: This may generate false positives for large transfers
-            
-            if (isDirect || shouldCheckAsProxy(info)) {
+            // Only record events for direct sells to keep behavior
+            // consistent with transferChecked handling
+            if (isDirect) {
               // Skip if timestamp is unavailable
               if (!tx.blockTime) {
                 logger.debug({ slot }, 'Skipping sell event: blockTime unavailable');
@@ -160,7 +157,9 @@ function analyzeTxForSells(
         const info = ix.parsed.info;
         
         if (info.mint === mintAddress) {
-          const source = info.authority || info.source;
+          // Use authority (the signer) as wallet, fallback to owner from token account
+          // Note: info.source is a token account address, not a wallet address
+          const source = info.authority || tokenAccountToOwner.get(info.source);
           
           if (source) {
             const isDirect = isWalletInGraph(graph, source);
@@ -198,8 +197,9 @@ function analyzeTxForSells(
  */
 function shouldCheckAsProxy(info: TransferInfo): boolean {
   // Simple heuristic: large transfers might be proxy sells
-  const amount = parseInt(info.amount || info.tokenAmount?.amount || '0');
-  return amount > PROXY_SELL_MIN_AMOUNT;
+  const amountStr = info.amount || info.tokenAmount?.amount || '0';
+  const amount = BigInt(amountStr);
+  return amount > BigInt(PROXY_SELL_MIN_AMOUNT);
 }
 
 /**
