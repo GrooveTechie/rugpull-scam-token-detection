@@ -6,6 +6,7 @@ Detects risky new token launches on Solana (e.g., Pump.fun/Raydium/Meteora) usin
 
 - **New token watcher**: Subscribes to Solana logs to detect fresh mints/pools
 - **Authority checks**: Mint/freeze authority status, decimals, supply
+- **Authority mutation watcher**: Continuously tracks mint/freeze/upgrade authority transitions as a hard-kill rug signal
 - **Liquidity checks (extensible)**: Hook points for per-DEX LP health
 - **Risk scoring**: Weighted rules producing 0–100 score with reasons
 - **Alerts**: Telegram and Discord notifications when risk exceeds threshold
@@ -32,6 +33,8 @@ DISCORD_WEBHOOK_URL=
 RISK_SCORE_ALERT_THRESHOLD=70
 PROGRAM_IDS=
 SIM_BUY_SOL=0.01
+AUTHORITY_PERSISTENCE_MINUTES=15
+AUTHORITY_MONITOR_INTERVAL_SECONDS=60
 ```
 
 3) Develop
@@ -72,6 +75,8 @@ Add concrete readers in `checks/liquidityChecks.ts` and feed into `riskScoring`.
 
 - Mint authority active: +30
 - Freeze authority active: +20
+- Authority changed after launch: +80 (critical)
+- Any authority still present after `AUTHORITY_PERSISTENCE_MINUTES`: +10
 - Low initial liquidity (<5 SOL): +15
 - LP not locked: +20
 - Uncommon decimals: +5

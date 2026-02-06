@@ -12,6 +12,8 @@ export function loadConfig() {
         .filter(Boolean);
     const riskAlertThreshold = Number(process.env.RISK_SCORE_ALERT_THRESHOLD ?? '70');
     const simBuySol = Number(process.env.SIM_BUY_SOL ?? '0.01');
+    const authorityPersistenceMinutes = Number(process.env.AUTHORITY_PERSISTENCE_MINUTES ?? '15');
+    const authorityMonitorIntervalSeconds = Number(process.env.AUTHORITY_MONITOR_INTERVAL_SECONDS ?? '60');
     return {
         rpcEndpoints,
         wsEndpoint: process.env.WS_ENDPOINT || undefined,
@@ -20,7 +22,9 @@ export function loadConfig() {
         discordWebhookUrl: process.env.DISCORD_WEBHOOK_URL || undefined,
         riskAlertThreshold,
         programIds,
-        simBuySol
+        simBuySol,
+        authorityPersistenceMinutes,
+        authorityMonitorIntervalSeconds
     };
 }
 //# sourceMappingURL=config.js.map

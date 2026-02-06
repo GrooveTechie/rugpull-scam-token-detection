@@ -8,6 +8,11 @@ export type TokenCheckResult = {
   supply: string;
 };
 
+export type ProgramUpgradeAuthorityResult = {
+  hasUpgradeAuthority: boolean | null;
+  upgradeAuthority?: string;
+};
+
 export async function runTokenAuthorityChecks(connection: Connection, mintStr: string): Promise<TokenCheckResult> {
   try {
     const mint = new PublicKey(mintStr);
@@ -30,4 +35,34 @@ export async function runTokenAuthorityChecks(connection: Connection, mintStr: s
   }
 }
 
+export async function runProgramUpgradeAuthorityCheck(
+  connection: Connection,
+  programId?: string
+): Promise<ProgramUpgradeAuthorityResult> {
+  if (programId === undefined) {
+    return { hasUpgradeAuthority: null };
+  }
 
+  try {
+    const programPk = new PublicKey(programId);
+    const accountInfo = await connection.getParsedAccountInfo(programPk, 'confirmed');
+    const parsedInfo = accountInfo.value?.data;
+
+    if (parsedInfo === null || typeof parsedInfo !== 'object' || !('parsed' in parsedInfo)) {
+      return { hasUpgradeAuthority: null };
+    }
+
+    const parsed = (parsedInfo as any).parsed;
+    const authority = parsed?.info?.authority as string | null | undefined;
+    if (authority === undefined) {
+      return { hasUpgradeAuthority: null };
+    }
+
+    return {
+      hasUpgradeAuthority: authority !== null,
+      upgradeAuthority: authority ?? undefined
+    };
+  } catch (err) {
+    return { hasUpgradeAuthority: null };
+  }
+}
