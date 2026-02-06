@@ -6,6 +6,12 @@ import { logger } from '../lib/logger.js';
 // Minimum token amount to consider as a potential proxy sell
 const PROXY_SELL_MIN_AMOUNT = 1000000;
 
+// Risk scoring constants
+const DIRECT_SELL_SCORE_PER_EVENT = 15;
+const MAX_DIRECT_SELL_SCORE = 25;
+const PROXY_SELL_SCORE_PER_EVENT = 5;
+const MAX_PROXY_SELL_SCORE = 10;
+
 // Type for parsed instruction info that may contain transfer data
 type TransferInfo = {
   mint?: string;
@@ -160,14 +166,14 @@ export function calculateSellRisk(sells: SellEvent[]): {
 
   // Direct sells from dev wallets are high risk
   if (directSells.length > 0) {
-    const directScore = Math.min(25, directSells.length * 15);
+    const directScore = Math.min(MAX_DIRECT_SELL_SCORE, directSells.length * DIRECT_SELL_SCORE_PER_EVENT);
     score += directScore;
     reasons.push(`${directSells.length} direct sell(s) from dev-linked wallets`);
   }
 
   // Proxy sells are moderate risk
   if (proxySells.length > 0) {
-    const proxyScore = Math.min(10, proxySells.length * 5);
+    const proxyScore = Math.min(MAX_PROXY_SELL_SCORE, proxySells.length * PROXY_SELL_SCORE_PER_EVENT);
     score += proxyScore;
     reasons.push(`${proxySells.length} potential proxy sell(s)`);
   }
