@@ -13,9 +13,8 @@ const PROXY_SELL_SCORE_PER_EVENT = 5;
 const MAX_PROXY_SELL_SCORE = 10;
 
 // Type for parsed instruction info that may contain transfer data
-// - `mint` and `amount`: present in regular 'transfer' instructions
-// - `authority` and `tokenAmount`: present in 'transferChecked' instructions
-// - `source`: the source account for the transfer
+// - Regular 'transfer': has `source`, `destination`, `amount`, `authority` (NO mint field!)
+// - 'transferChecked': has `source`, `destination`, `mint`, `authority`, `tokenAmount`
 type TransferInfo = {
   mint?: string;
   source?: string;
@@ -81,14 +80,51 @@ function analyzeTxForSells(
   try {
     const instructions = tx.transaction.message.instructions;
     
+    // Build maps from token account address -> mint and owner
+    // This is needed because regular 'transfer' instructions don't include mint info
+    const tokenAccountToMint = new Map<string, string>();
+    const tokenAccountToOwner = new Map<string, string>();
+    const accountKeys = tx.transaction.message.accountKeys;
+    
+    // Extract mint/owner info from pre and post token balances
+    for (const balance of tx.meta?.preTokenBalances ?? []) {
+      const accountKey = accountKeys[balance.accountIndex];
+      const accountAddress = typeof accountKey === 'string' 
+        ? accountKey 
+        : 'pubkey' in accountKey ? accountKey.pubkey.toBase58() : null;
+      if (accountAddress && balance.mint) {
+        tokenAccountToMint.set(accountAddress, balance.mint);
+        if (balance.owner) {
+          tokenAccountToOwner.set(accountAddress, balance.owner);
+        }
+      }
+    }
+    for (const balance of tx.meta?.postTokenBalances ?? []) {
+      const accountKey = accountKeys[balance.accountIndex];
+      const accountAddress = typeof accountKey === 'string' 
+        ? accountKey 
+        : 'pubkey' in accountKey ? accountKey.pubkey.toBase58() : null;
+      if (accountAddress && balance.mint) {
+        tokenAccountToMint.set(accountAddress, balance.mint);
+        if (balance.owner) {
+          tokenAccountToOwner.set(accountAddress, balance.owner);
+        }
+      }
+    }
+    
     for (const ix of instructions) {
       // Look for token transfer instructions that might indicate sells
-      if ('parsed' in ix && ix.parsed?.type === 'transfer') {
+      // Note: Regular 'transfer' instructions do NOT have a mint field in info
+      if ('parsed' in ix && ix.program === 'spl-token' && ix.parsed?.type === 'transfer') {
         const info = ix.parsed.info;
         
+        // Look up the mint from the source token account using token balances metadata
+        const transferMint = tokenAccountToMint.get(info.source);
+        
         // Only process if this is a token transfer for the target mint
-        if (info.mint === mintAddress) {
-          const source = info.source || info.authority;
+        if (transferMint === mintAddress) {
+          // Use authority (the signer) as wallet, fallback to owner from token account
+          const source = info.authority || tokenAccountToOwner.get(info.source);
           
           if (source) {
             // Check if source wallet is in graph (direct sell)
