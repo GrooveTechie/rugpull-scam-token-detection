@@ -88,6 +88,17 @@ Implement buy/sell attempts via route builders for the target DEX and `simulateT
 - Consider a small database to track processed mints and deployer reputation.
 - Backoff/retry on network errors.
 
+## Roadmap
+
+Want to contribute? Check out our [Feature Roadmap](FEATURE_ROADMAP.md) for planned enhancements!
+
+We have 7 planned features organized by priority:
+- **Tier 1:** Authority Mutation Watcher, Dev Wallet Graph, Liquidity Event Classifier
+- **Tier 2:** Early Holder Persistence Score, Sell Concentration Index
+- **Tier 3:** Funding Source Clustering, Communication Correlates
+
+Browse the [issue templates](.github/ISSUE_TEMPLATE/) or see the [guide to creating issues](docs/CREATE_ISSUES_GUIDE.md).
+
 ## Contact
 
 - Telegram: t.me/@lorine93s
