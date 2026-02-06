@@ -21,4 +21,29 @@ export async function runTokenAuthorityChecks(connection, mintStr) {
         };
     }
 }
+export async function runProgramUpgradeAuthorityCheck(connection, programId) {
+    if (programId === undefined) {
+        return { hasUpgradeAuthority: null };
+    }
+    try {
+        const programPk = new PublicKey(programId);
+        const accountInfo = await connection.getParsedAccountInfo(programPk, 'confirmed');
+        const parsedInfo = accountInfo.value?.data;
+        if (parsedInfo === null || typeof parsedInfo !== 'object' || !('parsed' in parsedInfo)) {
+            return { hasUpgradeAuthority: null };
+        }
+        const parsed = parsedInfo.parsed;
+        const authority = parsed?.info?.authority;
+        if (authority === undefined) {
+            return { hasUpgradeAuthority: null };
+        }
+        return {
+            hasUpgradeAuthority: authority !== null,
+            upgradeAuthority: authority ?? undefined
+        };
+    }
+    catch (err) {
+        return { hasUpgradeAuthority: null };
+    }
+}
 //# sourceMappingURL=tokenChecks.js.map
