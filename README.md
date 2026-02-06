@@ -32,6 +32,33 @@ DISCORD_WEBHOOK_URL=
 RISK_SCORE_ALERT_THRESHOLD=70
 PROGRAM_IDS=
 SIM_BUY_SOL=0.01
+
+# Monitoring / recheck
+MONITOR_RECHECK_MINUTES=15
+MONITOR_MAX_TRACKED_TOKENS=200
+MONITOR_TTL_MINUTES=120
+MONITOR_RPC_BUDGET_PER_TOKEN=50
+
+# Alert dedupe
+ALERT_DEDUPE_TTL_MINUTES=30
+ALERT_RESEND_SCORE_DELTA=10
+
+# Dev-linked graph
+DEV_GRAPH_ENABLED=true
+DEV_GRAPH_LOOKBACK_MINUTES=30
+DEV_GRAPH_MAX_WALLETS=50
+DEV_GRAPH_DEPTH=2
+
+# Sell detection (heuristic / DEX-agnostic)
+SELL_DETECTION_ENABLED=true
+SELL_LOOKBACK_MINUTES=15
+SELL_MIN_TOKEN_DROP_PCT=20
+SELL_MIN_SUPPLY_PCT=0.25
+PROXY_WINDOW_MINUTES=10
+PROXY_MAX_HOPS=1
+SELL_DEV_WEIGHT=25
+SELL_PROXY_WEIGHT=20
+SELL_MOVEMENT_NO_SELL_WEIGHT=10
 ```
 
 3) Develop
@@ -58,6 +85,8 @@ npm start
 - `src/checks/liquidityChecks.ts`: Extension points for per-DEX liquidity analysis.
 - `src/scoring/riskScoring.ts`: Aggregate risk calculation.
 - `src/services/telegram.ts`, `src/services/discord.ts`: Alert integrations.
+- `src/services/alertManager.ts`: Alert dedupe + resend-on-delta policy.
+- `src/monitoring/tokenMonitor.ts`: Post-detection recheck scheduler.
 - `src/simulation/honeypotSimulator.ts`: Placeholder for buy/sell simulation.
 
 ### Extending per DEX

@@ -1,6 +1,7 @@
 import { runTokenAuthorityChecks } from '../checks/tokenChecks.js';
 import { runLiquidityChecks } from '../checks/liquidityChecks.js';
-export async function scoreTokenRisk(clients, evt) {
+import { runDevSellAnalysis } from '../checks/devWalletGraphChecks.js';
+export async function scoreTokenRisk(clients, evt, config, params) {
     const breakdown = {};
     const reasons = [];
     let total = 0;
@@ -32,6 +33,52 @@ export async function scoreTokenRisk(clients, evt) {
         total += 20;
         reasons.push('LP not locked');
     }
-    return { total: Math.min(100, total), reasons, breakdown };
+    let snapshot;
+    if (config.sellDetectionEnabled || config.devGraphEnabled) {
+        const seeds = [evt.deployer, token.mintAuthority, token.freezeAuthority].filter(Boolean);
+        const analysis = await runDevSellAnalysis(clients.connection, {
+            mint: evt.mint,
+            decimals: token.decimals,
+            supplyRaw: token.supply,
+            seeds,
+            config,
+            evaluation: params.evaluation,
+            baselineSnapshot: params.baselineSnapshot
+        });
+        snapshot = analysis.snapshot;
+        if (analysis.result.directSellDetected) {
+            const points = Math.max(config.sellDevWeight, 80);
+            breakdown.devDirectSell = points;
+            total += points;
+            reasons.push('Direct dev-linked sell detected');
+        }
+        if (analysis.result.proxySellDetected) {
+            const points = Math.max(config.sellProxyWeight, 40);
+            breakdown.devProxySell = points;
+            total += points;
+            reasons.push('Proxy sell pattern detected (dev-linked transfer then rapid exit)');
+        }
+        if (!analysis.result.directSellDetected && !analysis.result.proxySellDetected && analysis.result.movementWithoutSellDetected) {
+            const points = Math.max(config.sellMovementNoSellWeight, 10);
+            breakdown.devMovement = points;
+            total += points;
+            reasons.push('Dev-linked wallet movement detected (no confirmed sell)');
+        }
+        if (analysis.result.truncated) {
+            breakdown.devAnalysisTruncated = 2;
+            total += 2;
+            reasons.push('Dev-linked analysis truncated (RPC budget/caps)');
+        }
+    }
+    const score = {
+        total: Math.min(100, total),
+        reasons,
+        breakdown,
+        meta: {
+            evaluation: params.evaluation,
+            devLinkedWalletCount: snapshot ? Object.keys(snapshot.balancesRawByWallet).length : undefined
+        }
+    };
+    return { score, snapshot };
 }
 //# sourceMappingURL=riskScoring.js.map
